@@ -51,7 +51,7 @@
 
     <script>
       let currentClient = null;
-      const ws = new WebSocket("ws://localhost:8080");
+      const ws = new WebSocket("wss://web-production-e802f.up.railway.app/");
 
       ws.onopen = function () {
         // 以客服身份初始化连接
