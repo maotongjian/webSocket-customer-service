@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>客服工作台</title>
+    <meta charset="utf-8" />
+    <style>
+      .chat-container {
+        display: flex;
+        height: 100vh;
+      }
+      .client-list {
+        width: 200px;
+        border-right: 1px solid #ccc;
+        padding: 10px;
+      }
+      .chat-window {
+        flex: 1;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+      }
+      .message-area {
+        flex: 1;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        margin-bottom: 10px;
+        padding: 10px;
+      }
+      .input-area {
+        display: flex;
+      }
+      .input-area input {
+        flex: 1;
+        margin-right: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chat-container">
+      <div class="client-list" id="clientList">
+        <h3>当前访客</h3>
+      </div>
+      <div class="chat-window">
+        <div class="message-area" id="messages"></div>
+        <div class="input-area">
+          <input type="text" id="messageInput" placeholder="输入消息" />
+          <button onclick="sendMessage()">发送</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let currentClient = null;
+      const ws = new WebSocket("ws://localhost:8080");
+
+      ws.onopen = function () {
+        // 以客服身份初始化连接
+        ws.send(
+          JSON.stringify({
+            type: "init",
+            role: "customer_service",
+          })
+        );
+      };
+
+      ws.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "new_client") {
+          addClientToList(data.clientId);
+          appendMessage(`系统: 新访客 ${data.clientId} 接入`);
+        } else if (data.type === "message") {
+          appendMessage(`访客(${data.from}): ${data.message}`);
+        } else if (data.type === "system") {
+          appendMessage(`系统: ${data.message}`);
+        }
+      };
+
+      function addClientToList(clientId) {
+        const div = document.createElement("div");
+        div.textContent = `访客 ${clientId}`;
+        div.onclick = () => selectClient(clientId);
+        document.getElementById("clientList").appendChild(div);
+      }
+
+      function selectClient(clientId) {
+        currentClient = clientId;
+        appendMessage(`系统: 已选择访客 ${clientId}`);
+        // 添加选中效果
+        const allClients = document.querySelectorAll("#clientList div");
+        allClients.forEach((div) => {
+          if (div.textContent === `访客 ${clientId}`) {
+            div.style.backgroundColor = "#e3f2fd";
+          } else {
+            div.style.backgroundColor = "";
+          }
+        });
+      }
+
+      function sendMessage() {
+        if (!currentClient) {
+          alert("请先选择要回复的访客");
+          return;
+        }
+
+        const input = document.getElementById("messageInput");
+        const message = input.value;
+
+        ws.send(
+          JSON.stringify({
+            type: "message",
+            to: currentClient,
+            message: message,
+          })
+        );
+
+        appendMessage(`客服: ${message}`);
+        input.value = "";
+      }
+
+      function appendMessage(message) {
+        const messagesDiv = document.getElementById("messages");
+        const messageElement = document.createElement("div");
+        messageElement.textContent = message;
+        messagesDiv.appendChild(messageElement);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+    </script>
+  </body>
+</html>
